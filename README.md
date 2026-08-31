@@ -1,20 +1,47 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# CyberBunny Forensics
 
-# Run and deploy your AI Studio app
+Website technology-profiling tool. Fetches a target site's public HTML through
+CORS proxies, then asks an LLM (via OpenRouter) to synthesise a 9-section
+technical report. Built with React 19 + Vite.
 
-This contains everything you need to run your app locally.
+## Run locally
 
-View your app in AI Studio: https://ai.studio/apps/b62f5d80-11e8-41bf-b208-50463538689d
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js 18+
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+   ```
+   npm install
+   ```
+2. Create `.env.local` with an OpenRouter API key:
+   ```
+   OPENROUTER_API_KEY=sk-or-v1-...
+   ```
+   Get one free at https://openrouter.ai/keys
+3. Start the dev server:
+   ```
+   npm run dev
+   ```
+   Opens on http://localhost:3000
+
+The default model is `minimax/minimax-m3:free` (works on a credit-less key).
+To use a stronger paid model, in the browser console:
+`window.CBF_MODEL = "google/gemini-3-flash-preview"`
+
+## Deploy to Vercel
+
+1. Import this repo in Vercel (framework preset: **Vite** — `vercel.json` sets it).
+2. Project → **Settings → Environment Variables** → add `OPENROUTER_API_KEY`
+   for Production, Preview and Development.
+3. Deploy (or **Redeploy without build cache** if the project already existed).
+
+> The key is inlined into the client bundle at build time, so it is visible in
+> the deployed site's JavaScript. Use a restricted / free key, rotate it if it
+> leaks, and move the API call behind a serverless function for anything
+> sensitive.
+
+## Build
+
+```
+npm run build      # -> dist/
+npm run preview     # serve the production build locally
+```
