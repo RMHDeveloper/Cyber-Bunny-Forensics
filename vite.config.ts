@@ -4,38 +4,45 @@ import react from '@vitejs/plugin-react';
 
 /**
  * Vite's `define` only rewrites `process.env.*` during `vite build`; in `vite dev`
- * the client-side define pass is skipped, so `process.env.API_KEY` would reach the
- * browser verbatim and throw "process is not defined". This dev-only plugin does the
- * same substitution the build does, so `npm run dev` works without touching app code.
+ * the client-side define pass is skipped, so `process.env.OPENROUTER_API_KEY` would
+ * reach the browser verbatim and throw "process is not defined". This dev-only
+ * plugin does the same substitution the build does, so `npm run dev` works without
+ * touching app code.
  */
-const injectEnvInDev = (value: string): Plugin => ({
-  name: 'inject-gemini-key-dev',
+const injectEnvInDev = (replacements: Record<string, string>): Plugin => ({
+  name: 'inject-env-dev',
   apply: 'serve',
   enforce: 'pre',
   transform(code, id) {
     if (id.includes('/node_modules/') || !/\.[jt]sx?$/.test(id)) return null;
-    if (!code.includes('process.env.API_KEY') && !code.includes('process.env.GEMINI_API_KEY')) return null;
-    return code
-      .replace(/process\.env\.API_KEY/g, value)
-      .replace(/process\.env\.GEMINI_API_KEY/g, value);
+    let out = code;
+    let touched = false;
+    for (const [expr, literal] of Object.entries(replacements)) {
+      if (out.includes(expr)) {
+        out = out.split(expr).join(literal);
+        touched = true;
+      }
+    }
+    return touched ? out : null;
   },
 });
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
-    // Always a string literal (never `undefined`) so `process.env.API_KEY` can't
+    // Always a string literal (never `undefined`) so `process.env.*` can't
     // become a bare ReferenceError in the browser when the key is unset.
-    const key = JSON.stringify(env.GEMINI_API_KEY || '');
+    const openRouterKey = JSON.stringify(env.OPENROUTER_API_KEY || '');
+    const replacements = {
+      'process.env.OPENROUTER_API_KEY': openRouterKey,
+      'process.env.API_KEY': openRouterKey,
+    };
     return {
       server: {
         port: 3000,
         host: '0.0.0.0',
       },
-      plugins: [react(), injectEnvInDev(key)],
-      define: {
-        'process.env.API_KEY': key,
-        'process.env.GEMINI_API_KEY': key
-      },
+      plugins: [react(), injectEnvInDev(replacements)],
+      define: replacements,
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),

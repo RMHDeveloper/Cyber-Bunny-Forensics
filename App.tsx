@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { AnalysisForm } from './components/AnalysisForm';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { analyzeWebsite } from './services/gemini';
+import { analyzeWebsite } from './services/analyzer';
 import { AnalysisResult } from './types';
 import { ShieldCheck, Zap, Terminal, Code2, Box, ShieldAlert, MousePointer2, Tag, Layout } from 'lucide-react';
 

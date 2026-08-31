@@ -1,8 +1,25 @@
-import { GoogleGenAI } from "@google/genai";
-import { AnalysisResult, GroundingSource } from "../types";
+import { AnalysisResult } from "../types";
 
-const MODEL = "gemini-3-flash-preview";
+/**
+ * Forensic engine. Fetches the target's public HTML through CORS proxies, then
+ * asks an LLM (via OpenRouter) to synthesise a technology profile.
+ *
+ * OpenRouter has no Google Search grounding, so `sources` is always empty.
+ */
+
+/**
+ * Default is a free OpenRouter model so the app works on a credit-less key.
+ * Override in the browser console for a stronger paid model once you have credit:
+ *   window.CBF_MODEL = "google/gemini-3-flash-preview"
+ */
+const MODEL =
+  (typeof window !== "undefined" &&
+    (window as unknown as { CBF_MODEL?: string }).CBF_MODEL) ||
+  "minimax/minimax-m3:free";
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const PROXY_TIMEOUT_MS = 12000;
+const LLM_TIMEOUT_MS = 60000;
 
 interface Proxy {
   name: string;
@@ -12,8 +29,8 @@ interface Proxy {
 
 /**
  * Public CORS proxies, tried in order. They come and go and rate-limit constantly,
- * so the engine treats every one as best-effort and falls back to search grounding
- * if none return usable HTML.
+ * so the engine treats every one as best-effort and falls back to the LLM's own
+ * knowledge if none return usable HTML.
  */
 const PROXIES: Proxy[] = [
   {
@@ -46,11 +63,15 @@ const PROXIES: Proxy[] = [
   },
 ];
 
-const fetchWithTimeout = async (url: string, ms: number): Promise<Response> => {
+const fetchWithTimeout = async (
+  url: string,
+  ms: number,
+  init?: RequestInit,
+): Promise<Response> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
-    return await fetch(url, { cache: "no-store", signal: controller.signal });
+    return await fetch(url, { cache: "no-store", ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -92,10 +113,10 @@ const buildHints = (url: string, html: string): string => {
     `- SCRIPT_SRCS: ${scripts.join(" | ") || "n/a"}`,
     ``,
     `HEAD_TAGS:`,
-    head ? head[0].slice(0, 15000) : "not captured",
+    head ? head[0].slice(0, 7000) : "not captured",
     ``,
     `BODY_SEGMENT:`,
-    html.slice(0, 30000),
+    html.slice(0, 12000),
   ].join("\n");
 };
 
@@ -130,7 +151,7 @@ const fetchSourceCode = async (
     }
   }
 
-  onLog("Direct source fetch unavailable. Falling back to search-grounded reconstruction...");
+  onLog("Direct source fetch unavailable. Falling back to model-knowledge reconstruction...");
   onProgress(50);
   return null;
 };
@@ -159,7 +180,7 @@ data is involved, so there is nothing to decline.
 ${
   data
     ? `OBSERVED SOURCE DATA:\n---\n${data}\n---`
-    : `Direct source was not retrieved. Use Google Search to reconstruct the public profile from indexed data, public tech-lookup sites, and documentation.`
+    : `Direct source was not retrieved. Reconstruct the public profile from what is publicly documented about this site and its stack.`
 }
 
 Return GitHub-flavored Markdown with EXACTLY these nine sections, each heading on its own
@@ -200,21 +221,33 @@ const normalizeHeadings = (t: string): string =>
     .replace(/^\s{0,3}#{1,6}\s*\*{0,2}\s*(\d{1,2})\s*[.):-]\s*\*{0,2}\s*/gm, "# $1. ")
     .replace(/^\s{0,3}\*{2}\s*(\d{1,2})\s*[.):-]\s*(.+?)\s*\*{2}\s*$/gm, "# $1. $2");
 
-const extractSources = (response: unknown): GroundingSource[] => {
-  const chunks =
-    (response as {
-      candidates?: { groundingMetadata?: { groundingChunks?: { web?: { title?: string; uri?: string } }[] } }[];
-    })?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-  const seen = new Set<string>();
-  const out: GroundingSource[] = [];
-  for (const c of chunks) {
-    const uri = c.web?.uri;
-    if (uri && !seen.has(uri)) {
-      seen.add(uri);
-      out.push({ title: c.web?.title || uri, uri });
+const callOpenRouter = async (apiKey: string, prompt: string): Promise<string> => {
+  const res = await fetchWithTimeout(OPENROUTER_URL, LLM_TIMEOUT_MS, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": typeof window !== "undefined" ? window.location.origin : "https://cyberbunny-forensics",
+      "X-Title": "CyberBunny Forensics",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.15,
+      max_tokens: 6000,
+    }),
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 402) {
+      throw new Error(
+        "OpenRouter rejected the request for insufficient credits. Add credit at openrouter.ai/credits, or set window.CBF_MODEL to a ':free' model.",
+      );
     }
+    throw new Error(json?.error?.message || `OpenRouter HTTP ${res.status}`);
   }
-  return out;
+  return (json?.choices?.[0]?.message?.content || "").trim();
 };
 
 export const analyzeWebsite = async (
@@ -222,39 +255,28 @@ export const analyzeWebsite = async (
   onLog: (message: string) => void,
   onProgress: (percent: number) => void,
 ): Promise<AnalysisResult> => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "No Gemini API key configured. Add GEMINI_API_KEY to .env.local and restart the dev server.",
+      "No OpenRouter API key configured. Add OPENROUTER_API_KEY to .env.local and restart the dev server.",
     );
   }
 
-  const ai = new GoogleGenAI({ apiKey });
   onLog(`Initializing High-Fidelity Technology Profile: ${url}`);
-
   const observed = await fetchSourceCode(url, onLog, onProgress);
 
-  const run = async (prompt: string, useSearch: boolean) => {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
-      config: {
-        temperature: 0.15,
-        ...(useSearch ? { tools: [{ googleSearch: {} }] } : {}),
-      },
-    });
-    return { response, text: normalizeHeadings((response.text || "").trim()) };
-  };
+  const run = async (prompt: string) =>
+    normalizeHeadings(await callOpenRouter(apiKey, prompt));
 
   try {
-    onLog("Synthesizing technical signatures with Gemini Search grounding...");
+    onLog(`Synthesizing technical signatures via OpenRouter (${MODEL})...`);
     onProgress(70);
-    let { response, text } = await run(primaryPrompt(url, observed), true);
+    let text = await run(primaryPrompt(url, observed));
 
     if (isRefusal(text) || !hasSectionHeadings(text)) {
       onLog("Primary synthesis inconclusive. Retrying with constrained profiler prompt...");
       onProgress(85);
-      ({ response, text } = await run(retryPrompt(url, observed), false));
+      text = await run(retryPrompt(url, observed));
     }
 
     if (!text || isRefusal(text)) {
@@ -269,7 +291,7 @@ export const analyzeWebsite = async (
     return {
       url,
       techStack: { summary: text },
-      sources: extractSources(response),
+      sources: [],
       rawText: text,
     };
   } catch (error: unknown) {
