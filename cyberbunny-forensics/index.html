@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CyberBunny Forensics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #0f172a;
+        color: #f8fafc;
+      }
+      .mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+      .locked-gradient {
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0) 0%, rgba(15, 23, 42, 0.95) 70%, rgba(15, 23, 42, 1) 100%);
+      }
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-4px); }
+        75% { transform: translateX(4px); }
+      }
+      .animate-shake {
+        animation: shake 0.2s ease-in-out 0s 2;
+      }
+      .pdf-only {
+        display: none !important;
+      }
+      
+      /* Print & PDF Report Specifics */
+      .pdf-report-container {
+        background: white !important;
+        color: black !important;
+        width: 800px;
+        padding: 40px;
+        font-size: 12px;
+      }
+      .pdf-report-container h1, 
+      .pdf-report-container h2, 
+      .pdf-report-container h3 {
+        color: #2563eb !important; /* Blue headers */
+        margin-top: 20px;
+        margin-bottom: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+      .pdf-report-container table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 10px;
+      }
+      .pdf-report-container th {
+        background: #f1f5f9 !important;
+        border: 1px solid #cbd5e1 !important;
+        padding: 8px;
+        text-align: left;
+        color: #475569 !important;
+      }
+      .pdf-report-container td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 8px;
+        vertical-align: top;
+        color: #334155 !important;
+      }
+      .pdf-page {
+        page-break-after: always !important;
+        min-height: 1000px;
+      }
+      .pdf-page:last-child {
+        page-break-after: auto !important;
+        min-height: auto;
+      }
+      .pdf-footer {
+        border-top: 1px solid #e2e8f0;
+        margin-top: 40px;
+        padding-top: 20px;
+        text-align: center;
+        color: #64748b;
+        font-size: 9px;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "jspdf": "https://esm.sh/jspdf@^2.5.1",
+    "html2canvas": "https://esm.sh/html2canvas@^1.4.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
