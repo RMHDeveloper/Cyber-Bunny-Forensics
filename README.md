@@ -17,7 +17,7 @@ technical report. Built with React 19 + Vite.
    OPENROUTER_API_KEY=sk-or-v1-...
    ```
    Get one free at https://openrouter.ai/keys
-3. Start the dev server:
+3. Start the dev server: 
    ```
    npm run dev
    ```
