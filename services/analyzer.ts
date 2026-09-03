@@ -1,4 +1,5 @@
 import { AnalysisResult } from "../types";
+import { runRecon, reconToPromptText } from "./recon";
 
 /**
  * Forensic engine. Fetches the target's public HTML through CORS proxies, then
@@ -120,11 +121,16 @@ const buildHints = (url: string, html: string): string => {
   ].join("\n");
 };
 
+interface FetchedSource {
+  hints: string;
+  rawHtml: string;
+}
+
 const fetchSourceCode = async (
   url: string,
   onLog: (msg: string) => void,
   onProgress: (p: number) => void,
-): Promise<string | null> => {
+): Promise<FetchedSource | null> => {
   let progress = 5;
   onProgress(progress);
 
@@ -132,7 +138,7 @@ const fetchSourceCode = async (
     try {
       onLog(`Attempting fetch via ${proxy.name}...`);
       const res = await fetchWithTimeout(proxy.build(url), PROXY_TIMEOUT_MS);
-      progress = Math.min(progress + 8, 45);
+      progress = Math.min(progress + 8, 40);
       onProgress(progress);
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -140,8 +146,8 @@ const fetchSourceCode = async (
       const html = await proxy.extract(res);
       if (html && html.length > 300 && looksLikeHtml(html)) {
         onLog(`SUCCESS: ${proxy.name} retrieved source (${(html.length / 1024).toFixed(1)} KB).`);
-        onProgress(50);
-        return buildHints(url, html);
+        onProgress(45);
+        return { hints: buildHints(url, html), rawHtml: html };
       }
       onLog(`${proxy.name} responded but returned no usable HTML.`);
     } catch (err: unknown) {
@@ -152,7 +158,7 @@ const fetchSourceCode = async (
   }
 
   onLog("Direct source fetch unavailable. Falling back to model-knowledge reconstruction...");
-  onProgress(50);
+  onProgress(45);
   return null;
 };
 
@@ -193,6 +199,7 @@ RULES:
 - Section 9 MUST be narrative prose using "- " bullet points (no table).
 - Every heading MUST match "# N. TITLE" exactly: one "#", a space, the number, a period, a space.
 - "Identification Method" = how it was detected (e.g. "/wp-content/ path", "gtag.js init", "response header").
+- If a RECON_DATA block is present, its values are measured facts (DNS, RDAP, Certificate Transparency, HTML fingerprint). Use them verbatim and prefer them over inference; set "Identification Method" to "DNS record", "RDAP", "CT logs" or "HTML fingerprint" as appropriate. Fold discovered subdomains into section 4.
 - Extract concrete IDs where visible: GA ("G-XXXX" / "UA-XXXX"), GTM ("GTM-XXXX"), Meta Pixel (numeric).
 - Where a fact is genuinely unknown, write "Not observed" - do not invent specifics.
 - No preamble, no closing signature.
@@ -263,7 +270,15 @@ export const analyzeWebsite = async (
   }
 
   onLog(`Initializing High-Fidelity Technology Profile: ${url}`);
-  const observed = await fetchSourceCode(url, onLog, onProgress);
+  const fetched = await fetchSourceCode(url, onLog, onProgress);
+
+  onLog("Running passive reconnaissance (DNS / RDAP / CT logs / fingerprint)...");
+  onProgress(50);
+  const recon = await runRecon(url, fetched?.rawHtml ?? null, onLog);
+  onProgress(65);
+
+  const reconText = reconToPromptText(recon);
+  const observed = [fetched?.hints, reconText].filter(Boolean).join("\n\n") || null;
 
   const run = async (prompt: string) =>
     normalizeHeadings(await callOpenRouter(apiKey, prompt));
@@ -293,6 +308,7 @@ export const analyzeWebsite = async (
       techStack: { summary: text },
       sources: [],
       rawText: text,
+      recon,
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Deep synthesis aborted.";

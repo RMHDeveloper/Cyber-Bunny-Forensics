@@ -3,6 +3,7 @@ import { AnalysisResult } from '../types';
 import { Download, Globe, X, Mail, AlertCircle, Loader2 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { ReconPanel } from './ReconPanel';
 
 interface ResultsDisplayProps {
   result: AnalysisResult;
@@ -418,6 +419,8 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result }) => {
             <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
           </button>
         </div>
+
+        <ReconPanel recon={result.recon} />
 
         <div className="relative prose prose-invert max-w-none">
           {!parsedSections && renderMarkdownToHtml(result.rawText.split('\n'), false)}

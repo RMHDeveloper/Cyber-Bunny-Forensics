@@ -14,6 +14,48 @@ const DUMMY_RESULT: AnalysisResult = {
     { title: "Wappalyzer Technical Profile", uri: "https://www.wappalyzer.com" },
     { title: "BuiltWith Architecture Audit", uri: "https://builtwith.com" }
   ],
+  recon: {
+    dns: {
+      a: ["104.21.32.114", "172.67.180.9"],
+      aaaa: ["2606:4700:3033::6815:2072"],
+      ns: ["gina.ns.cloudflare.com", "rick.ns.cloudflare.com"],
+      mx: ["1 aspmx.l.google.com", "5 alt1.aspmx.l.google.com"],
+      txt: ["v=spf1 include:_spf.google.com ~all"],
+      cname: [],
+      caa: ['0 issue "letsencrypt.org"'],
+      spf: "v=spf1 include:_spf.google.com ~all",
+      dmarc: "v=DMARC1; p=quarantine; rua=mailto:dmarc@example-sample-site.com",
+      provider: "Cloudflare",
+      mailProvider: "Google Workspace",
+    },
+    rdap: {
+      domain: "example-sample-site.com",
+      registrar: "NameCheap, Inc.",
+      created: "2016-07-19T00:00:00Z",
+      expires: "2027-07-19T00:00:00Z",
+      updated: "2025-06-11T00:00:00Z",
+      ageDays: 3699,
+      statuses: ["clientTransferProhibited"],
+      nameservers: ["gina.ns.cloudflare.com", "rick.ns.cloudflare.com"],
+      dnssec: false,
+    },
+    subdomains: {
+      subdomains: ["blog", "cdn", "mail", "shop", "staging", "www"].map(
+        (s) => `${s}.example-sample-site.com`,
+      ),
+      count: 6,
+      truncated: false,
+    },
+    fingerprints: [
+      { name: "Meta Pixel", category: "Advertising", version: "987654321", evidence: "fbq('init'" },
+      { name: "Cloudflare", category: "CDN / Security", evidence: "cdn-cgi/challenge-platform" },
+      { name: "WordPress", category: "CMS", version: "6.4.2", evidence: "wp-content/" },
+      { name: "WooCommerce", category: "E-commerce", evidence: "woocommerce" },
+      { name: "Google Analytics (GA4)", category: "Analytics", version: "G-8V6Z29L9W1", evidence: "gtag/js?id=G-" },
+      { name: "Elementor", category: "Page Builder", evidence: "elementor-frontend" },
+      { name: "jQuery", category: "JS Library", version: "3.7.1", evidence: "jquery-3.7.1.min.js" },
+    ],
+  },
   rawText: `# 1. ARCHITECTURAL OVERVIEW
 | Component | Details | Identification Method | AI Summary |
 | :--- | :--- | :--- | :--- |
