@@ -39,6 +39,12 @@ To use a stronger paid model, in the browser console:
 > leaks, and move the API call behind a serverless function for anything
 > sensitive.
 
+If no `OPENROUTER_API_KEY` is set at build time, the deployed site still loads:
+it shows a key field and stores whatever the visitor pastes in their browser's
+`localStorage` only. After changing the deployment branch or env vars, trigger a
+fresh deploy ("Redeploy without build cache") — the old bundle is served until
+you do.
+
 ## Build
 
 ```

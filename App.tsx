@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { AnalysisForm } from './components/AnalysisForm';
+import { ApiKeyField } from './components/ApiKeyField';
 import { ResultsDisplay } from './components/ResultsDisplay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { analyzeWebsite } from './services/analyzer';
@@ -257,7 +258,9 @@ const App: React.FC = () => {
           )}
           
           <AnalysisForm onAnalyze={handleAnalyze} isLoading={loading} />
-          
+
+          {!loading && <ApiKeyField onChange={() => setError(null)} />}
+
           {!loading && !result && (
             <div className="mt-8 flex justify-center">
               <button 

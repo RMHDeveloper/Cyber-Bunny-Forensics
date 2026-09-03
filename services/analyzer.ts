@@ -257,15 +257,41 @@ const callOpenRouter = async (apiKey: string, prompt: string): Promise<string> =
   return (json?.choices?.[0]?.message?.content || "").trim();
 };
 
+/** localStorage key holding a user-supplied OpenRouter key (deployed-site fallback). */
+export const API_KEY_STORAGE = "CBF_OPENROUTER_KEY";
+
+/**
+ * Resolve the OpenRouter key, in priority order:
+ *   1. a key the user pasted into the app  (localStorage)
+ *   2. window.CBF_API_KEY  (console override)
+ *   3. OPENROUTER_API_KEY inlined at build time  (.env.local / host env var)
+ */
+export const getApiKey = (): string => {
+  try {
+    const stored = localStorage.getItem(API_KEY_STORAGE);
+    if (stored && stored.trim()) return stored.trim();
+  } catch {
+    /* localStorage unavailable - ignore */
+  }
+  const override =
+    typeof window !== "undefined"
+      ? (window as unknown as { CBF_API_KEY?: string }).CBF_API_KEY
+      : undefined;
+  if (typeof override === "string" && override.trim()) return override.trim();
+  return (process.env.OPENROUTER_API_KEY || "").trim();
+};
+
+export const hasApiKey = (): boolean => getApiKey() !== "";
+
 export const analyzeWebsite = async (
   url: string,
   onLog: (message: string) => void,
   onProgress: (percent: number) => void,
 ): Promise<AnalysisResult> => {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error(
-      "No OpenRouter API key configured. Add OPENROUTER_API_KEY to .env.local and restart the dev server.",
+      "No OpenRouter API key found. Add one in the key field on this page, or set OPENROUTER_API_KEY in your deployment's environment variables and redeploy. Free keys: https://openrouter.ai/keys",
     );
   }
 

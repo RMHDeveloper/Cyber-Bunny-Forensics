@@ -1,6 +1,6 @@
 {
   "name": "CyberBunny Forensics",
-  "description": "Professional website architectural discovery and forensic auditing tool powered by Gemini and Rabbit Marketing House.",
+  "description": "Professional website architectural discovery and forensic auditing tool with passive DNS/RDAP/CT reconnaissance and AI synthesis (OpenRouter), by Rabbit Marketing House.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
