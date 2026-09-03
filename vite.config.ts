@@ -37,6 +37,8 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': openRouterKey,
     };
     return {
+      // '/' for Vercel / a custom domain; set BASE_PATH for GitHub Pages project sites.
+      base: env.BASE_PATH || '/',
       server: {
         port: 3000,
         host: '0.0.0.0',
