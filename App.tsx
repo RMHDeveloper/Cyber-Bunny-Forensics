@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AnalysisForm } from './components/AnalysisForm';
 import { ApiKeyField } from './components/ApiKeyField';
 import { ResultsDisplay } from './components/ResultsDisplay';
@@ -158,6 +158,43 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<{ id: string; msg: string; timestamp: string }[]>([]);
 
+  // Smooth, unhurried progress animation. The analyzer reports coarse milestones
+  // (5, 40, 50, 65, 70, 100…) with long network/LLM waits in between, which made
+  // the dial look frozen. Instead we treat each reported value as a *target* and
+  // ease the displayed number toward it a little at a time, and — while a phase
+  // is still running — keep creeping forward just short of the next milestone so
+  // the audit always feels like it's working.
+  const targetRef = useRef(0);
+  const displayRef = useRef(0);
+
+  const setProgressTarget = (p: number) => {
+    targetRef.current = Math.max(targetRef.current, Math.min(100, Math.round(p)));
+  };
+
+  useEffect(() => {
+    if (!loading) return;
+    const id = window.setInterval(() => {
+      const target = targetRef.current;
+      let next = displayRef.current;
+
+      if (next < target) {
+        // Close the gap to a freshly-reported milestone gradually.
+        next += Math.max(0.35, (target - next) * 0.05);
+      } else if (target < 100 && next < target + 24) {
+        // Milestone reached but the phase is still churning — drift onward slowly
+        // so the dial keeps moving, stopping short of the next milestone.
+        next += 0.09;
+      }
+
+      next = Math.min(next, target >= 100 ? 100 : target + 24, 99);
+      if (target >= 100) next = Math.min(displayRef.current + 1.5, 100);
+
+      displayRef.current = next;
+      setProgress(Math.round(next));
+    }, 90);
+    return () => window.clearInterval(id);
+  }, [loading]);
+
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, {
       id: Math.random().toString(36).slice(2, 11),
@@ -169,13 +206,18 @@ const App: React.FC = () => {
   const handleAnalyze = async (url: string) => {
     setLoading(true);
     setProgress(0);
+    targetRef.current = 0;
+    displayRef.current = 0;
     setError(null);
     setResult(null);
-    setLogs([]); 
+    setLogs([]);
 
     try {
       addLog("Booting CyberBunny High-Precision Inspection Engine...");
-      const data = await analyzeWebsite(url, addLog, setProgress);
+      const data = await analyzeWebsite(url, addLog, setProgressTarget);
+      targetRef.current = 100;
+      // Let the dial visibly finish its climb to 100% before the report swaps in.
+      await new Promise((r) => setTimeout(r, 900));
       setResult(data);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
