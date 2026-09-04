@@ -37,8 +37,9 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': openRouterKey,
     };
     return {
-      // '/' for Vercel / a custom domain; set BASE_PATH for GitHub Pages project sites.
-      base: env.BASE_PATH || '/',
+      // Deployed at the apex of a custom domain (see public/CNAME), so the base
+      // path is always '/'. BASE_PATH from the CI env is intentionally ignored.
+      base: '/',
       server: {
         port: 3000,
         host: '0.0.0.0',

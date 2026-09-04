@@ -1,0 +1,2 @@
+# Keep the CNAME file LF so GitHub Pages parses the domain correctly
+public/CNAME text eol=lf
